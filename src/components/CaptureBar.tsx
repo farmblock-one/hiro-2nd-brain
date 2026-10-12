@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 
 /** Ô nhập duy nhất: dán link, gõ ghi chú, chia sẻ từ điện thoại. */
-export function CaptureBar({ onAdd }: { onAdd: (content: string) => void }) {
+export function CaptureBar({ onAdd }: { onAdd: (content: string) => Promise<boolean> }) {
   const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
 
   // Share Target (PWA): trình duyệt mở app với ?title=&text=&url=
@@ -17,10 +18,12 @@ export function CaptureBar({ onAdd }: { onAdd: (content: string) => void }) {
     }
   }, []);
 
-  function submit() {
-    if (!value.trim()) return;
-    onAdd(value);
-    setValue("");
+  async function submit() {
+    if (!value.trim() || saving) return;
+    setSaving(true);
+    // Chỉ xoá chữ khi đã lưu thành công, tránh mất ghi chú nếu mất mạng.
+    if (await onAdd(value)) setValue("");
+    setSaving(false);
     ref.current?.focus();
   }
 
@@ -46,10 +49,10 @@ export function CaptureBar({ onAdd }: { onAdd: (content: string) => void }) {
         <button
           type="button"
           onClick={submit}
-          disabled={!value.trim()}
+          disabled={!value.trim() || saving}
           className="shrink-0 whitespace-nowrap rounded-full bg-eye px-5 py-2 text-sm font-semibold text-coal transition active:scale-95 disabled:bg-ink-2 disabled:text-cream-dim/50"
         >
-          Thả vào bát 🐾
+          {saving ? "Đang lưu…" : "Thả vào bát 🐾"}
         </button>
       </div>
     </div>
