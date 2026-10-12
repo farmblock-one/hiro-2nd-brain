@@ -4,7 +4,7 @@ Second brain cá nhân, canh giữ bởi một chú mèo Tuxedo. Mobile-first PW
 
 ## Trạng thái
 - [x] **Giai đoạn 1:** khung Next.js, theme Tuxedo, Inbox, PWA + Share Target (dữ liệu tạm trong `localStorage`)
-- [ ] Giai đoạn 2: đăng nhập + lưu Supabase
+- [x] **Giai đoạn 2:** đăng nhập email/mật khẩu + lưu Supabase (RLS)
 - [ ] Giai đoạn 3: AI tóm tắt/tag (Supabase Edge Functions + Claude), transcript YouTube
 - [ ] Giai đoạn 4: upload PDF + tìm kiếm ngữ nghĩa
 - [ ] Giai đoạn 5: hỏi đáp trên kho kiến thức, gợi ý liên kết
@@ -14,6 +14,11 @@ Second brain cá nhân, canh giữ bởi một chú mèo Tuxedo. Mobile-first PW
 npm install
 npm run dev
 ```
+
+## Thiết lập Supabase (một lần)
+1. Chạy `supabase/migrations/0001_items.sql` trong **SQL Editor** của Supabase.
+2. Tạo user ở **Authentication → Users → Add user** (tích Auto Confirm), và tắt Allow new users to sign up.
+3. Project URL và Publishable key nằm trong `src/lib/supabase.ts` (công khai theo thiết kế); có thể ghi đè bằng `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 
 ## Deploy lên GitHub Pages
 1. Repo **Settings → Pages → Source: GitHub Actions**.

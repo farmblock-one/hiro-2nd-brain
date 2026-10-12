@@ -2,110 +2,97 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { detectType, extractUrl } from "./detect";
+import { supabase } from "./supabase";
 import type { Item } from "./types";
 
-/**
- * Giai đoạn 1: lưu tạm trong localStorage để chạy được ngay.
- * Giai đoạn 2 sẽ thay phần đọc/ghi bằng Supabase mà giữ nguyên giao diện hook.
- */
-const KEY = "catme.items.v1";
-
-const SEED: Item[] = [
-  {
-    id: "seed-1",
-    type: "book",
-    content: "Atomic Habits — thói quen nhỏ, thay đổi lớn nhờ hệ thống chứ không phải mục tiêu.",
-    status: "processed",
-    summary: "Cải thiện 1% mỗi ngày. Tập trung vào danh tính và hệ thống thay vì mục tiêu.",
-    tags: ["thói quen", "phát triển bản thân"],
-    createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-  },
-  {
-    id: "seed-2",
-    type: "video",
-    content: "https://youtu.be/dQw4w9WgXcQ",
-    sourceUrl: "https://youtu.be/dQw4w9WgXcQ",
-    status: "inbox",
-    tags: [],
-    createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
-  },
-];
-
-function load(): Item[] {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as Item[];
-  } catch {
-    /* localStorage không dùng được → rơi về dữ liệu mẫu */
-  }
-  return SEED;
+interface Row {
+  id: string;
+  type: Item["type"];
+  content: string;
+  source_url: string | null;
+  status: Item["status"];
+  summary: string | null;
+  tags: string[];
+  created_at: string;
 }
 
-function save(items: Item[]) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(items));
-  } catch {
-    /* bỏ qua */
+const fromRow = (r: Row): Item => ({
+  id: r.id,
+  type: r.type,
+  content: r.content,
+  sourceUrl: r.source_url ?? undefined,
+  status: r.status,
+  summary: r.summary ?? undefined,
+  tags: r.tags ?? [],
+  createdAt: r.created_at,
+});
+
+/** Giải thích lỗi thường gặp bằng tiếng Việt, dễ tự sửa. */
+function explain(message: string): string {
+  if (/relation .*items.* does not exist|Could not find the table/i.test(message)) {
+    return "Chưa có bảng `items`. Hãy chạy file supabase/migrations/0001_items.sql trong SQL Editor của Supabase.";
   }
+  return message;
 }
 
 export function useItems() {
   const [items, setItems] = useState<Item[]>([]);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setItems(load());
-    setReady(true);
+    let alive = true;
+    supabase
+      .from("items")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .then(({ data, error: err }) => {
+        if (!alive) return;
+        if (err) setError(explain(err.message));
+        else setItems((data as Row[]).map(fromRow));
+        setReady(true);
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  const update = useCallback((fn: (prev: Item[]) => Item[]) => {
-    setItems((prev) => {
-      const next = fn(prev);
-      save(next);
-      return next;
-    });
+  /** Trả về true nếu lưu thành công để ô nhập biết có nên xoá chữ không. */
+  const add = useCallback(async (content: string): Promise<boolean> => {
+    const text = content.trim();
+    if (!text) return false;
+    const { data, error: err } = await supabase
+      .from("items")
+      .insert({ type: detectType(text), content: text, source_url: extractUrl(text) ?? null })
+      .select()
+      .single();
+    if (err) {
+      setError(explain(err.message));
+      return false;
+    }
+    setError(null);
+    setItems((prev) => [fromRow(data as Row), ...prev]);
+    return true;
   }, []);
-
-  const add = useCallback(
-    (content: string) => {
-      const text = content.trim();
-      if (!text) return;
-      const item: Item = {
-        id: crypto.randomUUID(),
-        type: detectType(text),
-        content: text,
-        sourceUrl: extractUrl(text),
-        status: "inbox",
-        tags: [],
-        createdAt: new Date().toISOString(),
-      };
-      update((prev) => [item, ...prev]);
-    },
-    [update],
-  );
 
   /** "Cho mèo ăn": giai đoạn 3 sẽ gọi Claude để tóm tắt và gắn tag thật. */
-  const process = useCallback(
-    (id: string) => {
-      update((prev) =>
-        prev.map((it) =>
-          it.id === id
-            ? {
-                ...it,
-                status: "processed",
-                summary: it.summary ?? "(Bản tóm tắt AI sẽ xuất hiện ở đây sau giai đoạn 3.)",
-              }
-            : it,
-        ),
-      );
-    },
-    [update],
-  );
+  const process = useCallback(async (id: string) => {
+    const summary = "(Bản tóm tắt AI sẽ xuất hiện ở đây sau giai đoạn 3.)";
+    const { error: err } = await supabase
+      .from("items")
+      .update({ status: "processed", summary })
+      .eq("id", id);
+    if (err) return setError(explain(err.message));
+    setItems((prev) =>
+      prev.map((it) => (it.id === id ? { ...it, status: "processed", summary } : it)),
+    );
+  }, []);
 
-  const remove = useCallback(
-    (id: string) => update((prev) => prev.filter((it) => it.id !== id)),
-    [update],
-  );
+  const remove = useCallback(async (id: string) => {
+    const { error: err } = await supabase.from("items").delete().eq("id", id);
+    if (err) return setError(explain(err.message));
+    setItems((prev) => prev.filter((it) => it.id !== id));
+  }, []);
 
-  return { items, ready, add, process, remove };
+  return { items, ready, error, add, process, remove };
 }

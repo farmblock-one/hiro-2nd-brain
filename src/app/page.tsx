@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { CatFace, SleepingCat } from "@/components/Cat";
 import { CaptureBar } from "@/components/CaptureBar";
 import { ItemCard } from "@/components/ItemCard";
+import { LoginForm } from "@/components/LoginForm";
+import { useSession } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 import { useItems } from "@/lib/store";
 
 type Filter = "inbox" | "processed" | "all";
@@ -14,8 +17,8 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "all", label: "Tất cả" },
 ];
 
-export default function Home() {
-  const { items, ready, add, process: processItem, remove } = useItems();
+function Brain() {
+  const { items, ready, error, add, process: processItem, remove } = useItems();
   const [filter, setFilter] = useState<Filter>("inbox");
 
   // Đăng ký service worker để cài được như app.
@@ -42,9 +45,22 @@ export default function Home() {
           </h1>
           <p className="mt-1 text-xs text-cream-dim">Second brain, mèo canh giữ</p>
         </div>
+        <button
+          type="button"
+          onClick={() => supabase.auth.signOut()}
+          className="ml-auto rounded-full px-3 py-1.5 text-xs text-cream-dim/70 active:bg-ink-2"
+        >
+          Đăng xuất
+        </button>
       </header>
 
       <CaptureBar onAdd={add} />
+
+      {error && (
+        <p role="alert" className="rounded-2xl border border-nose/40 bg-nose/10 p-3 text-sm text-nose">
+          {error}
+        </p>
+      )}
 
       <nav className="flex gap-2" aria-label="Bộ lọc">
         {FILTERS.map((f) => {
@@ -89,4 +105,12 @@ export default function Home() {
       )}
     </main>
   );
+}
+
+export default function Home() {
+  const { session, loading } = useSession();
+  if (loading) return <main className="min-h-dvh" aria-busy="true" />;
+  if (!session) return <LoginForm />;
+  // key theo user để dữ liệu không lẫn khi đổi tài khoản
+  return <Brain key={session.user.id} />;
 }
