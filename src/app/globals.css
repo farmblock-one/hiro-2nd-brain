@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+/* Bảng màu mèo Tuxedo: lông đen than, ngực/chân trắng kem, mắt xanh lá, mũi hồng */
+@theme {
+  --color-coal: #121317;
+  --color-ink: #1b1d23;
+  --color-ink-2: #262932;
+  --color-line: #2f323c;
+  --color-cream: #f6f0e4;
+  --color-cream-dim: #b9b3a6;
+  --color-eye: #9be15d;
+  --color-eye-dim: #6fb13a;
+  --color-nose: #f4a6b8;
+  --font-sans: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html {
+  color-scheme: dark;
+  background: var(--color-coal);
+}
+
+body {
+  background: var(--color-coal);
+  color: var(--color-cream);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+::selection {
+  background: var(--color-eye);
+  color: var(--color-coal);
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+@keyframes munch {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(14px) scale(0.92); opacity: 0; }
+}
+.animate-breathe { animation: breathe 4s ease-in-out infinite; transform-origin: center bottom; }
+.animate-munch { animation: munch 0.45s ease-in forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-breathe, .animate-munch { animation: none; }
+}
