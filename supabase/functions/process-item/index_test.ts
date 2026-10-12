@@ -6,7 +6,7 @@ Deno.env.set("SUPABASE_URL", "https://proj.supabase.co");
 Deno.env.set("SUPABASE_ANON_KEY", "anon");
 Deno.env.set("GEMINI_API_KEY", "gk");
 
-const { handle, assertPublicUrl, htmlToText } = await import("./index.ts");
+const { handle, assertPublicUrl, htmlToText, youtubeId } = await import("./index.ts");
 
 type Item = { id: string; type: string; content: string; source_url: string | null };
 let item: Item | null;
@@ -33,7 +33,7 @@ globalThis.fetch = ((input: Request | URL | string, init?: RequestInit) => {
     return req.json().then((b) => {
       geminiBodies.push(b);
       if (geminiStatus !== 200) return j({ error: "x" }, geminiStatus);
-      return j({ candidates: [{ content: { parts: [{ text: JSON.stringify({ title: "Tiêu đề", summary: "Tóm tắt.", tags: ["Tài Chính", " thói quen "], domain: "Tài chính" }) }] } }] });
+      return j({ candidates: [{ content: { parts: [{ text: JSON.stringify({ title: "Tiêu đề", summary: "Tóm tắt.", key_points: [{ heading: "Ý một", detail: "Giải thích." }, { heading: "", detail: "" }], quotes: ["Câu hay", ""], action_items: ["Làm việc A"], tags: ["Tài Chính", " thói quen "], domain: "Tài chính" }) }] } }] });
     });
   }
   if (u.hostname === "example.com") {
@@ -56,13 +56,19 @@ Deno.test("ghi chú: tóm tắt, chuẩn hoá tag, cập nhật status", async (
   assertEquals(updates[0].status, "processed");
   assertEquals(updates[0].tags, ["tài chính", "thói quen"]);
   assertEquals(updates[0].domain, "tài chính");
+  assertEquals(updates[0].key_points, [{ heading: "Ý một", detail: "Giải thích." }]); // bỏ ý rỗng
+  assertEquals(updates[0].quotes, ["Câu hay"]);
+  assertEquals(updates[0].action_items, ["Làm việc A"]);
+  assert(!JSON.stringify(geminiBodies[0]).includes("start_offset"));
   assert(JSON.stringify(geminiBodies[0]).includes("Mua cổ phiếu dài hạn"));
 });
 
 Deno.test("video: gửi file_uri YouTube cho Gemini", async () => {
-  reset({ id: "2", type: "video", content: "https://youtu.be/abc", source_url: "https://youtu.be/abc" });
+  const messy = "https://www.youtube.com/watch?v=ebabtFmldFU&t=37s";
+  reset({ id: "2", type: "video", content: messy, source_url: messy });
   assertEquals((await call("2")).status, 200);
-  assertEquals(geminiBodies[0].contents[0].parts[1].file_data.file_uri, "https://youtu.be/abc");
+  // Tham số &t=37s phải được bỏ, nếu không Gemini hiểu nhầm là trang HTML.
+  assertEquals(geminiBodies[0].contents[0].parts[1].file_data.file_uri, "https://www.youtube.com/watch?v=ebabtFmldFU");
 });
 
 Deno.test("bài viết: tải HTML, bỏ script, đưa chữ vào tài liệu", async () => {
@@ -97,6 +103,22 @@ Deno.test("item không tồn tại / không thuộc user (RLS trả rỗng) → 
   reset({ id: "7", type: "note", content: "x", source_url: null });
   item = null;
   assertEquals((await call("7")).status, 404);
+});
+
+Deno.test("youtubeId: nhiều dạng link", () => {
+  const ID = "ebabtFmldFU";
+  for (const u of [
+    `https://www.youtube.com/watch?v=${ID}&t=37s`,
+    `https://youtube.com/watch?list=PL1&v=${ID}`,
+    `https://m.youtube.com/watch?v=${ID}`,
+    `https://youtu.be/${ID}?si=abc&t=5`,
+    `https://www.youtube.com/shorts/${ID}`,
+    `https://www.youtube.com/embed/${ID}`,
+    `https://www.youtube.com/live/${ID}?feature=share`,
+  ]) assertEquals(youtubeId(u), ID, u);
+  for (const bad of ["https://example.com/watch?v=ebabtFmldFU", "https://www.youtube.com/", "https://youtu.be/short", "không phải url"]) {
+    assertEquals(youtubeId(bad), null, bad);
+  }
 });
 
 Deno.test("tiện ích", () => {
