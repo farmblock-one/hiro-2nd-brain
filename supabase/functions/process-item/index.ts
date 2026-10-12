@@ -57,6 +57,24 @@ export function assertPublicUrl(raw: string): URL {
   return u;
 }
 
+/** Lấy ID video từ mọi dạng link YouTube (watch, youtu.be, shorts, embed, live; bỏ &t=, &list=…). */
+export function youtubeId(raw: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return null;
+  }
+  const host = u.hostname.replace(/^(www|m|music)\./, "").toLowerCase();
+  let id: string | null = null;
+  if (host === "youtu.be") id = u.pathname.split("/")[1] ?? null;
+  else if (host === "youtube.com" || host === "youtube-nocookie.com") {
+    if (u.pathname === "/watch") id = u.searchParams.get("v");
+    else id = u.pathname.match(/^\/(?:shorts|embed|live|v)\/([^/?#]+)/)?.[1] ?? null;
+  }
+  return id && /^[\w-]{11}$/.test(id) ? id : null;
+}
+
 export function htmlToText(html: string): { title: string; text: string } {
   const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim() ?? "";
   const text = html
@@ -185,9 +203,11 @@ async function buildParts(item: ItemRow): Promise<unknown[]> {
   const url = item.source_url;
 
   if (item.type === "video" && url) {
-    assertPublicUrl(url);
+    const id = youtubeId(url);
+    if (!id) throw new HttpError(422, "Không nhận ra link YouTube này.");
     // Gemini đọc trực tiếp video YouTube công khai (giới hạn ~8 giờ video/ngày ở gói miễn phí).
-    return [{ text: INSTRUCTION }, { file_data: { file_uri: url } }];
+    // Phải gửi link dạng chuẩn: tham số thừa (&t=, &list=) làm Gemini coi đó là trang web thường.
+    return [{ text: INSTRUCTION }, { file_data: { file_uri: `https://www.youtube.com/watch?v=${id}` } }];
   }
 
   if ((item.type === "link" || item.type === "pdf") && url) {
