@@ -20,6 +20,7 @@ const FILTERS: { key: Filter; label: string }[] = [
 function Brain() {
   const { items, ready, error, add, process: processItem, remove } = useItems();
   const [filter, setFilter] = useState<Filter>("inbox");
+  const [topic, setTopic] = useState<string | null>(null);
 
   // Đăng ký service worker để cài được như app.
   useEffect(() => {
@@ -30,10 +31,17 @@ function Brain() {
   }, []);
 
   const inboxCount = items.filter((i) => i.status === "inbox").length;
-  const visible = useMemo(
-    () => (filter === "all" ? items : items.filter((i) => i.status === filter)),
-    [items, filter],
-  );
+  const visible = useMemo(() => {
+    const byStatus = filter === "all" ? items : items.filter((i) => i.status === filter);
+    // Lọc theo chủ đề: khớp lĩnh vực hoặc một trong các tag.
+    return topic ? byStatus.filter((i) => i.domain === topic || i.tags.includes(topic)) : byStatus;
+  }, [items, filter, topic]);
+
+  // Bấm lại cùng chủ đề thì bỏ lọc; chuyển sang "Tất cả" để thấy toàn bộ kho kiến thức.
+  function pickTopic(t: string) {
+    setTopic((cur) => (cur === t ? null : t));
+    setFilter("all");
+  }
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-5 px-4 pb-16 pt-[max(1.25rem,env(safe-area-inset-top))]">
@@ -86,6 +94,19 @@ function Brain() {
         })}
       </nav>
 
+      {topic && (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-cream-dim">Đang xem chủ đề</span>
+          <button
+            type="button"
+            onClick={() => setTopic(null)}
+            className="rounded-full bg-eye px-3 py-1 font-semibold text-coal active:scale-95"
+          >
+            {topic} ✕
+          </button>
+        </div>
+      )}
+
       {!ready ? null : visible.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
           <SleepingCat className="animate-breathe" />
@@ -99,7 +120,14 @@ function Brain() {
       ) : (
         <ul className="flex flex-col gap-3">
           {visible.map((item) => (
-            <ItemCard key={item.id} item={item} onProcess={processItem} onRemove={remove} />
+            <ItemCard
+              key={item.id}
+              item={item}
+              activeTopic={topic}
+              onProcess={processItem}
+              onRemove={remove}
+              onTopic={pickTopic}
+            />
           ))}
         </ul>
       )}

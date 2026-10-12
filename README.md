@@ -21,7 +21,7 @@ npm run dev
 3. Project URL và Publishable key nằm trong `src/lib/supabase.ts` (công khai theo thiết kế); có thể ghi đè bằng `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 
 ## Bật AI (giai đoạn 3)
-1. Chạy `supabase/migrations/0002_ai_fields.sql` trong SQL Editor.
+1. Chạy lần lượt `supabase/migrations/0002_ai_fields.sql` và `0003_rich_summary.sql` trong SQL Editor.
 2. Lấy Gemini API key ở aistudio.google.com (gói miễn phí).
 3. Supabase → **Edge Functions → Secrets**: thêm `GEMINI_API_KEY`. Tuỳ chọn `GEMINI_MODEL` (mặc định `gemini-3.5-flash-lite`).
 4. Supabase → **Edge Functions → Deploy a new function → Via Editor**, tên `process-item`, dán nội dung `supabase/functions/process-item/index.ts`, **tắt "Verify JWT"** (function tự xác thực bằng `auth.getUser()`), rồi Deploy.

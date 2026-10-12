@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { detectType, extractUrl } from "./detect";
 import { supabase } from "./supabase";
-import type { Item } from "./types";
+import type { Item, KeyPoint } from "./types";
 
 interface Row {
   id: string;
@@ -15,6 +15,9 @@ interface Row {
   summary: string | null;
   domain: string | null;
   tags: string[];
+  key_points: KeyPoint[] | null;
+  quotes: string[] | null;
+  action_items: string[] | null;
   created_at: string;
 }
 
@@ -28,6 +31,9 @@ const fromRow = (r: Row): Item => ({
   summary: r.summary ?? undefined,
   domain: r.domain ?? undefined,
   tags: r.tags ?? [],
+  keyPoints: r.key_points ?? [],
+  quotes: r.quotes ?? [],
+  actionItems: r.action_items ?? [],
   createdAt: r.created_at,
 });
 
@@ -43,8 +49,8 @@ function explainProcess(message: string): string {
   if (/Failed to send a request to the Edge Function|FunctionsFetchError/i.test(message)) {
     return "Chưa gọi được function process-item. Kiểm tra function đã được deploy trên Supabase chưa.";
   }
-  if (/column .*(title|domain)|Could not find the '(title|domain)' column/i.test(message)) {
-    return "Thiếu cột AI. Hãy chạy supabase/migrations/0002_ai_fields.sql trong SQL Editor.";
+  if (/column .*(title|domain|key_points|quotes|action_items)|Could not find the '(title|domain|key_points|quotes|action_items)' column/i.test(message)) {
+    return "Thiếu cột AI. Hãy chạy 0002_ai_fields.sql và 0003_rich_summary.sql (thư mục supabase/migrations) trong SQL Editor.";
   }
   return message;
 }

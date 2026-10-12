@@ -1,6 +1,11 @@
 export type ItemType = "note" | "link" | "video" | "book" | "pdf";
 export type ItemStatus = "inbox" | "processed";
 
+export interface KeyPoint {
+  heading: string;
+  detail: string;
+}
+
 export interface Item {
   id: string;
   type: ItemType;
@@ -12,6 +17,9 @@ export interface Item {
   title?: string;
   summary?: string;
   domain?: string;
+  keyPoints: KeyPoint[];
+  quotes: string[];
+  actionItems: string[];
   tags: string[];
   createdAt: string;
 }

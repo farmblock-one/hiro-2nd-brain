@@ -33,7 +33,7 @@ globalThis.fetch = ((input: Request | URL | string, init?: RequestInit) => {
     return req.json().then((b) => {
       geminiBodies.push(b);
       if (geminiStatus !== 200) return j({ error: "x" }, geminiStatus);
-      return j({ candidates: [{ content: { parts: [{ text: JSON.stringify({ title: "Tiêu đề", summary: "Tóm tắt.", tags: ["Tài Chính", " thói quen "], domain: "Tài chính" }) }] } }] });
+      return j({ candidates: [{ content: { parts: [{ text: JSON.stringify({ title: "Tiêu đề", summary: "Tóm tắt.", key_points: [{ heading: "Ý một", detail: "Giải thích." }, { heading: "", detail: "" }], quotes: ["Câu hay", ""], action_items: ["Làm việc A"], tags: ["Tài Chính", " thói quen "], domain: "Tài chính" }) }] } }] });
     });
   }
   if (u.hostname === "example.com") {
@@ -56,6 +56,10 @@ Deno.test("ghi chú: tóm tắt, chuẩn hoá tag, cập nhật status", async (
   assertEquals(updates[0].status, "processed");
   assertEquals(updates[0].tags, ["tài chính", "thói quen"]);
   assertEquals(updates[0].domain, "tài chính");
+  assertEquals(updates[0].key_points, [{ heading: "Ý một", detail: "Giải thích." }]); // bỏ ý rỗng
+  assertEquals(updates[0].quotes, ["Câu hay"]);
+  assertEquals(updates[0].action_items, ["Làm việc A"]);
+  assert(!JSON.stringify(geminiBodies[0]).includes("start_offset"));
   assert(JSON.stringify(geminiBodies[0]).includes("Mua cổ phiếu dài hạn"));
 });
 
