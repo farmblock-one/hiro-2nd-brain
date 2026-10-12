@@ -9,7 +9,9 @@ export interface Item {
   sourceUrl?: string;
   status: ItemStatus;
   /** Do AI điền ở giai đoạn 3; hiện là dữ liệu giả lập */
+  title?: string;
   summary?: string;
+  domain?: string;
   tags: string[];
   createdAt: string;
 }

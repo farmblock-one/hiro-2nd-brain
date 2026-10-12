@@ -18,27 +18,32 @@ export function ItemCard({
   onRemove,
 }: {
   item: Item;
-  onProcess: (id: string) => void;
+  onProcess: (id: string) => Promise<boolean>;
   onRemove: (id: string) => void;
 }) {
   const meta = TYPE_META[item.type];
   const [eating, setEating] = useState(false);
 
-  function feed() {
+  async function feed() {
     setEating(true);
-    setTimeout(() => onProcess(item.id), 450);
+    const ok = await onProcess(item.id);
+    // Thành công thì thẻ đã đổi trạng thái; thất bại thì cho bấm lại.
+    if (!ok) setEating(false);
   }
 
   return (
     <li
-      className={`rounded-2xl border border-line bg-ink p-4 ${eating ? "animate-munch" : ""}`}
+      className={`rounded-2xl border border-line bg-ink p-4 ${eating ? "animate-pulse" : ""}`}
     >
       <div className="mb-2 flex items-center justify-between text-xs text-cream-dim">
         <span className="rounded-full bg-ink-2 px-2.5 py-1">
           {meta.emoji} {meta.label}
         </span>
+        {item.domain && <span className="rounded-full bg-eye/15 px-2.5 py-1 text-eye">{item.domain}</span>}
         <span>{timeAgo(item.createdAt)}</span>
       </div>
+
+      {item.title && <h2 className="mb-1 text-base font-semibold leading-snug">{item.title}</h2>}
 
       <p className="line-clamp-4 whitespace-pre-line break-words text-[15px] leading-relaxed">
         {item.content}
@@ -75,7 +80,7 @@ export function ItemCard({
             disabled={eating}
             className="rounded-full border border-eye/50 px-4 py-1.5 text-sm font-medium text-eye active:bg-eye/10"
           >
-            Cho mèo ăn 🐟
+            {eating ? "Mèo đang nhai…" : "Cho mèo ăn 🐟"}
           </button>
         )}
       </div>
