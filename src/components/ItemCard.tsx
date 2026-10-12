@@ -18,27 +18,31 @@ export function ItemCard({
   onRemove,
 }: {
   item: Item;
-  onProcess: (id: string) => void;
+  onProcess: (id: string) => Promise<boolean>;
   onRemove: (id: string) => void;
 }) {
   const meta = TYPE_META[item.type];
   const [eating, setEating] = useState(false);
 
-  function feed() {
+  async function feed() {
     setEating(true);
-    setTimeout(() => onProcess(item.id), 450);
+    await onProcess(item.id);
+    setEating(false);
   }
 
   return (
     <li
-      className={`rounded-2xl border border-line bg-ink p-4 ${eating ? "animate-munch" : ""}`}
+      className={`rounded-2xl border border-line bg-ink p-4 ${eating ? "animate-pulse" : ""}`}
     >
       <div className="mb-2 flex items-center justify-between text-xs text-cream-dim">
         <span className="rounded-full bg-ink-2 px-2.5 py-1">
           {meta.emoji} {meta.label}
         </span>
+        {item.domain && <span className="rounded-full bg-eye/15 px-2.5 py-1 text-eye">{item.domain}</span>}
         <span>{timeAgo(item.createdAt)}</span>
       </div>
+
+      {item.title && <h2 className="mb-1 text-base font-semibold leading-snug">{item.title}</h2>}
 
       <p className="line-clamp-4 whitespace-pre-line break-words text-[15px] leading-relaxed">
         {item.content}
@@ -68,14 +72,14 @@ export function ItemCard({
         >
           Xoá
         </button>
-        {item.status === "inbox" && (
+        {(item.status === "inbox" || !item.title) && (
           <button
             type="button"
             onClick={feed}
             disabled={eating}
-            className="rounded-full border border-eye/50 px-4 py-1.5 text-sm font-medium text-eye active:bg-eye/10"
+            className="rounded-full border border-eye/50 px-4 py-1.5 text-sm font-medium text-eye active:bg-eye/10 disabled:opacity-70"
           >
-            Cho mèo ăn 🐟
+            {eating ? "Mèo đang nhai…" : item.status === "inbox" ? "Cho mèo ăn 🐟" : "Nhờ mèo đọc lại 🐟"}
           </button>
         )}
       </div>

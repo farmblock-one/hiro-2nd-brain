@@ -11,7 +11,9 @@ interface Row {
   content: string;
   source_url: string | null;
   status: Item["status"];
+  title: string | null;
   summary: string | null;
+  domain: string | null;
   tags: string[];
   created_at: string;
 }
@@ -22,7 +24,9 @@ const fromRow = (r: Row): Item => ({
   content: r.content,
   sourceUrl: r.source_url ?? undefined,
   status: r.status,
+  title: r.title ?? undefined,
   summary: r.summary ?? undefined,
+  domain: r.domain ?? undefined,
   tags: r.tags ?? [],
   createdAt: r.created_at,
 });
@@ -31,6 +35,16 @@ const fromRow = (r: Row): Item => ({
 function explain(message: string): string {
   if (/relation .*items.* does not exist|Could not find the table/i.test(message)) {
     return "Chưa có bảng `items`. Hãy chạy file supabase/migrations/0001_items.sql trong SQL Editor của Supabase.";
+  }
+  return message;
+}
+
+function explainProcess(message: string): string {
+  if (/Failed to send a request to the Edge Function|FunctionsFetchError/i.test(message)) {
+    return "Chưa gọi được function process-item. Kiểm tra function đã được deploy trên Supabase chưa.";
+  }
+  if (/column .*(title|domain)|Could not find the '(title|domain)' column/i.test(message)) {
+    return "Thiếu cột AI. Hãy chạy supabase/migrations/0002_ai_fields.sql trong SQL Editor.";
   }
   return message;
 }
@@ -75,17 +89,22 @@ export function useItems() {
     return true;
   }, []);
 
-  /** "Cho mèo ăn": giai đoạn 3 sẽ gọi Claude để tóm tắt và gắn tag thật. */
-  const process = useCallback(async (id: string) => {
-    const summary = "(Bản tóm tắt AI sẽ xuất hiện ở đây sau giai đoạn 3.)";
-    const { error: err } = await supabase
-      .from("items")
-      .update({ status: "processed", summary })
-      .eq("id", id);
-    if (err) return setError(explain(err.message));
-    setItems((prev) =>
-      prev.map((it) => (it.id === id ? { ...it, status: "processed", summary } : it)),
-    );
+  /** "Cho mèo ăn": Edge Function gọi Gemini để tóm tắt và gắn tag. Trả về true nếu thành công. */
+  const process = useCallback(async (id: string): Promise<boolean> => {
+    const { data, error: err } = await supabase.functions.invoke("process-item", { body: { id } });
+    if (err) {
+      let message = err.message;
+      // Lỗi HTTP của function mang thông điệp tiếng Việt trong body.
+      const ctx = (err as { context?: Response }).context;
+      if (ctx && typeof ctx.json === "function") {
+        message = (await ctx.json().catch(() => null))?.error ?? message;
+      }
+      setError(explainProcess(message));
+      return false;
+    }
+    setError(null);
+    setItems((prev) => prev.map((it) => (it.id === id ? fromRow(data.item as Row) : it)));
+    return true;
   }, []);
 
   const remove = useCallback(async (id: string) => {
