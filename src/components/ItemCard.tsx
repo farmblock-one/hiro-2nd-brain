@@ -26,9 +26,8 @@ export function ItemCard({
 
   async function feed() {
     setEating(true);
-    const ok = await onProcess(item.id);
-    // Thành công thì thẻ đã đổi trạng thái; thất bại thì cho bấm lại.
-    if (!ok) setEating(false);
+    await onProcess(item.id);
+    setEating(false);
   }
 
   return (
@@ -73,14 +72,14 @@ export function ItemCard({
         >
           Xoá
         </button>
-        {item.status === "inbox" && (
+        {(item.status === "inbox" || !item.title) && (
           <button
             type="button"
             onClick={feed}
             disabled={eating}
-            className="rounded-full border border-eye/50 px-4 py-1.5 text-sm font-medium text-eye active:bg-eye/10"
+            className="rounded-full border border-eye/50 px-4 py-1.5 text-sm font-medium text-eye active:bg-eye/10 disabled:opacity-70"
           >
-            {eating ? "Mèo đang nhai…" : "Cho mèo ăn 🐟"}
+            {eating ? "Mèo đang nhai…" : item.status === "inbox" ? "Cho mèo ăn 🐟" : "Nhờ mèo đọc lại 🐟"}
           </button>
         )}
       </div>
